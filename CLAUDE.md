@@ -15,8 +15,7 @@ The app was Klimax UI (`dev.bcollard.KlimaxUI`, cask `klimax-ui`) until the CLI'
 klimax → marina rename. Identifiers follow the CLI exactly: `~/.marina`, the
 `marina` binary, `marina.run/fleet`, `managed-by=marina`, `marina-dns*` containers,
 `default/marina-wildcard-tls`. The bundle id changed, so preferences start fresh.
-The notarytool keychain profile keeps its old default name `klimax-notary` — it
-lives in the keychain, not in this repo. The tap needs `cask_renames.json`
+The tap needs `cask_renames.json`
 `{"klimax-ui": "marina-ui"}` once `Casks/marina-ui.rb` is published.
 
 ---
@@ -510,11 +509,11 @@ The app shells out to `ssh`, `kubectl`, `helm`, reads arbitrary paths under `~/.
 Prerequisites (one-time):
 
 - Apple Developer ID Application certificate in the login keychain.
-- A `notarytool` keychain profile:
+- A `notarytool` keychain profile, from an App Store Connect API key (Users and Access ›
+  Integrations › Team Keys, Developer role; the `.p8` downloads once):
   ```bash
-  xcrun notarytool store-credentials klimax-notary \
-    --apple-id you@example.com --team-id YOURTEAMID \
-    --password <app-specific-password>
+  xcrun notarytool store-credentials marina-notary \
+    --key AuthKey_<KEYID>.p8 --key-id <KEYID> --issuer <ISSUER-UUID>
   ```
 - `brew install create-dmg`.
 - `swift-bundler` on PATH (`~/.local/bin/swift-bundler` built from [moreSwift/swift-bundler](https://github.com/moreSwift/swift-bundler)).
@@ -531,7 +530,7 @@ Bump `version` in `Bundler.toml`, then:
 Env overrides:
 
 - `MARINA_SIGN_IDENTITY` — the Developer ID Application identity name.
-- `MARINA_NOTARY_PROFILE` — the `notarytool` profile name (default `klimax-notary`).
+- `MARINA_NOTARY_PROFILE` — the `notarytool` profile name (default `marina-notary`, from an App Store Connect API key).
 
 ### Publishing checklist
 

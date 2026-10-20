@@ -4,7 +4,7 @@
 set -euo pipefail
 
 IDENTITY="${MARINA_SIGN_IDENTITY:-Developer ID Application: Baptiste Collard (PZARL6555S)}"
-NOTARY_PROFILE="${MARINA_NOTARY_PROFILE:-klimax-notary}"
+NOTARY_PROFILE="${MARINA_NOTARY_PROFILE:-marina-notary}"
 
 cd "$(dirname "$0")/.."
 OUT_DIR=".build/bundler/apps/MarinaUI"

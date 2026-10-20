@@ -102,12 +102,11 @@ Requires Xcode (for the Swift 6 toolchain) and [swift-bundler](https://github.co
 The script requires:
 
 - Developer ID Application cert in the login keychain.
-- A `notarytool` keychain profile (default `klimax-notary`):
+- A `notarytool` keychain profile (default `marina-notary`, from an App Store Connect API key):
 
   ```bash
-  xcrun notarytool store-credentials klimax-notary \
-    --apple-id you@example.com --team-id YOURTEAMID \
-    --password <app-specific-password>
+  xcrun notarytool store-credentials marina-notary \
+    --key AuthKey_<KEYID>.p8 --key-id <KEYID> --issuer <ISSUER-UUID>
   ```
 
 - `brew install create-dmg` for the DMG step.
