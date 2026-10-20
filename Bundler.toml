@@ -3,7 +3,7 @@ format_version = 3
 [apps.MarinaUI]
 identifier = "dev.bcollard.MarinaUI"
 product = "MarinaUI"
-version = "0.3.0"
+version = "0.3.1"
 category = "public.app-category.developer-tools"
 icon = "Sources/MarinaUI/Resources/marina-logo.png"
 
