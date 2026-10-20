@@ -25,6 +25,11 @@ struct ServicesTabView: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 header
+                if model.dnsZone(for: cluster.name) != nil,
+                   let state = model.systemResolver, state != .ok,
+                   let domain = model.localDNS?.domain {
+                    SystemResolverBanner(state: state, domain: domain)
+                }
                 ForEach(loadBalancers) { svc in
                     ServiceCard(
                         service: svc,
@@ -56,7 +61,10 @@ struct ServicesTabView: View {
             caEnabled: model.localCA?.enabled == true,
             resolutions: model.nameResolutions[cluster.name] ?? [:],
             externalDNS: model.clusterDetail?.cluster.name == cluster.name
-                ? model.clusterDetail?.externalDNS : nil
+                ? model.clusterDetail?.externalDNS : nil,
+            publishesIngress: (model.clusterDetail?.cluster.name == cluster.name
+                ? model.clusterDetail?.externalDNSIngress : nil) ?? model.dnsIngressEnabled,
+            resolverBypassed: model.systemResolver.map { if case .bypassed = $0 { return true }; return false } ?? false
         )
     }
 
@@ -92,6 +100,12 @@ private struct ServiceDNS {
     let caEnabled: Bool
     let resolutions: [String: NameResolution]
     let externalDNS: ExternalDNSState?
+    /// Whether the cluster's ExternalDNS runs `--source=ingress` — the deployed
+    /// args when read, else `network.dns.ingress`.
+    let publishesIngress: Bool
+    /// macOS sends the zone's lookups past /etc/resolver: every red dot has
+    /// that one cause, already explained in the banner.
+    let resolverBypassed: Bool
 
     /// The name endpoints use for a VIP: the most deliberate one on it.
     func host(for ip: String) -> String? {
@@ -178,7 +192,9 @@ private struct ServiceCard: View {
                         server: dns.server,
                         isFleet: dns.fleetNames.contains(rec.name),
                         coverage: dns.coverage[rec.name],
-                        caEnabled: dns.caEnabled
+                        caEnabled: dns.caEnabled,
+                        publishesIngress: dns.publishesIngress,
+                        resolverBypassed: dns.resolverBypassed
                     )
                 }
             }
@@ -248,6 +264,8 @@ private struct DNSNameRow: View {
     let isFleet: Bool
     let coverage: WildcardCoverage?
     let caEnabled: Bool
+    let publishesIngress: Bool
+    let resolverBypassed: Bool
     @State private var copied: String?
 
     private var digCommand: String {
@@ -317,7 +335,9 @@ private struct DNSNameRow: View {
         case .automatic:
             return "The name marina gives every LoadBalancer Service (network.dns.nameTemplate). Still published when the Service sets its own hostname."
         case .sharedVIP:
-            return "Published by another object on the same VIP — typically an Ingress host served by this controller."
+            return publishesIngress
+                ? "Published by another object on the same VIP — typically an Ingress host served by this controller."
+                : "Published by another object on the same VIP: another Service sharing it, or an Ingress host left over from before network.dns.ingress went off (re-attach the cluster from the Info tab to remove those)."
         }
     }
 
@@ -357,6 +377,9 @@ private struct DNSNameRow: View {
     private func verdict(_ r: NameResolution) -> (Color, String) {
         if r.addresses.contains(record.ip) {
             return (.green, "Resolves on this Mac to \(record.ip)")
+        }
+        if r.addresses.isEmpty, resolverBypassed {
+            return (.red, "Does not resolve on this Mac: macOS sends the zone's lookups past /etc/resolver — see the warning above the services.")
         }
         if r.addresses.isEmpty {
             return (.red, "Does not resolve on this Mac. marina publishes it, so check /etc/resolver and the DNS server under Settings › Diagnostics. macOS caches a failed lookup for ~75 s, so a name queried before it was published can take that long to appear.")

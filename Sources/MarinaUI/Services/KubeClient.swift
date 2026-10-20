@@ -55,16 +55,18 @@ struct KubeClient: Sendable {
     /// State of marina's per-cluster ExternalDNS (`external-dns/external-dns`).
     /// nil when kubectl failed for another reason than NotFound — an
     /// unreachable API server must not read as "not attached".
-    func externalDNSState() async -> ExternalDNSState? {
+    func externalDNS() async -> ExternalDNSInfo? {
         let args = baseArgs(["get", "deployment", "external-dns", "-n", "external-dns", "-o", "json"])
         guard let result = try? await ProcessRunner.run("kubectl", args) else { return nil }
         if !result.ok {
-            return result.stderr.contains("NotFound") ? .missing : nil
+            return result.stderr.contains("NotFound")
+                ? ExternalDNSInfo(state: .missing, publishesIngress: nil) : nil
         }
         guard let data = result.stdout.data(using: .utf8),
               let dep = try? JSONDecoder().decode(KubeDeployment.self, from: data)
         else { return nil }
-        return dep.isReady ? .ready : .notReady
+        return ExternalDNSInfo(state: dep.isReady ? .ready : .notReady,
+                               publishesIngress: dep.containerArgs.contains("--source=ingress"))
     }
 
     /// Creation timestamp of the kube-system namespace — a reliable proxy for

@@ -22,6 +22,7 @@ final class AppModel {
     var guestStats: GuestSSH.GuestStats?
     var guestLima0IP: String?
     private var fetchingGuestOSInfo = false
+    private var fetchingGuestDiskUsage = false
 
     var clusters: [KindCluster] = []
     var clustersLoading = false
@@ -182,9 +183,28 @@ final class AppModel {
     var nameResolutions: [String: [String: NameResolution]] = [:]
     private var resolveTask: Task<Void, Never>?
 
+    // Whether macOS's resolver answers for the zone (marina-probe.<domain>).
+    // nil until checked, or while the zone is off / the DNS server is down.
+    var systemResolver: SystemResolverState?
+    private var systemResolverTask: Task<Void, Never>?
+
     // Local CA (`marina ca status`): root trust and which clusters/fleets hold
     // a wildcard. nil when `network.dns.tls` is off or marina predates it.
     var localCA: LocalCAStatus?
+
+    /// What `network.dns.ingress` asks for (off unless set, marina 0.3.0+).
+    var dnsIngressEnabled: Bool { config?.network?.dns?.ingress == true }
+
+    /// The cluster's ExternalDNS publishes Ingress hosts when the config says
+    /// it shouldn't, or the reverse. Only `marina dns attach` re-renders it, so
+    /// a cluster attached before 0.3.0 keeps the ingress source after an
+    /// upgrade. nil when the deployment hasn't been read.
+    func ingressSourceDrift(for clusterName: String) -> Bool? {
+        guard let detail = clusterDetail, detail.cluster.name == clusterName,
+              detail.externalDNS != .missing, let deployed = detail.externalDNSIngress
+        else { return nil }
+        return deployed != dnsIngressEnabled
+    }
 
     /// The subzone a cluster publishes into, when the zone is on.
     func dnsZone(for clusterName: String) -> String? {
@@ -381,6 +401,8 @@ final class AppModel {
         var metricsServerReady: Bool = false
         /// nil when the zone is off, or kubectl couldn't tell.
         var externalDNS: ExternalDNSState? = nil
+        /// Whether that ExternalDNS runs `--source=ingress`; nil when unknown.
+        var externalDNSIngress: Bool? = nil
         var serverVersion: String? = nil
         var loading: Bool = true
         var error: String? = nil
@@ -581,6 +603,27 @@ final class AppModel {
         )
 
         await backfillGuestOSInfo(guest: guest)
+        await backfillGuestDiskUsage(guest: guest)
+    }
+
+    /// Disk usage also only comes from the full `stats()` call, and a failed
+    /// one leaves the VM card on the static lima.yaml size with no Images row.
+    /// Same retry as `backfillGuestOSInfo`.
+    private func backfillGuestDiskUsage(guest: GuestSSH) async {
+        guard !fetchingGuestDiskUsage, guestStats?.rootDisk == nil else { return }
+        fetchingGuestDiskUsage = true
+        defer { fetchingGuestDiskUsage = false }
+        guard let disks = await guest.diskUsage() else { return }
+        guestStats = GuestSSH.GuestStats(
+            uptime: guestStats?.uptime,
+            loadAvg: guestStats?.loadAvg,
+            memTotalKB: guestStats?.memTotalKB,
+            memAvailableKB: guestStats?.memAvailableKB,
+            kernel: guestStats?.kernel,
+            osName: guestStats?.osName,
+            rootDisk: disks.root,
+            imageDisk: disks.image
+        )
     }
 
     /// Kernel and distro come from the full `stats()` call, which only runs on
@@ -629,6 +672,7 @@ final class AppModel {
         localDNS = status?.dns
         // Host-side file reads (~30 ms); only when marina reports a local CA.
         localCA = status?.dns?.tls != nil ? try? await MarinaCLI.caStatus() : nil
+        checkSystemResolver()
         await refreshClusters()
         await refreshCurrentKubeContext()
         if let vm, vm.isRunning, let ssh = vm.ssh {
@@ -959,6 +1003,34 @@ final class AppModel {
         }
     }
 
+    /// Resolve `marina-probe.<domain>` the way apps do, in the background — a
+    /// lookup an MDM profile sends to a DoH server can take seconds. When it
+    /// fails, `dig @server` tells "the server has no probe record" (an older
+    /// marina set DNS up) apart from "the Mac's resolver goes elsewhere".
+    func checkSystemResolver() {
+        systemResolverTask?.cancel()
+        guard let dns = localDNS, dns.enabled, dns.hostResolver, dns.serverRunning == true,
+              let domain = dns.domain, let server = dns.server
+        else {
+            systemResolver = nil
+            return
+        }
+        let name = "\(SystemResolverState.probeLabel).\(domain)"
+        systemResolverTask = Task { [weak self] in
+            let state: SystemResolverState
+            if await HostResolver.resolveIPv4(name).contains(server) {
+                state = .ok
+            } else {
+                let dig = try? await ProcessRunner.run(
+                    "/usr/bin/dig", ["@\(server)", "+short", "+time=2", "+tries=1", name, "A"])
+                let served = dig?.stdout.split(separator: "\n").contains { $0 == server } ?? false
+                state = served ? .bypassed(profile: ManagedDNSProfile.find().first) : .probeMissing
+            }
+            guard !Task.isCancelled else { return }
+            self?.systemResolver = state
+        }
+    }
+
     /// Resolve every name in the cluster's subzone through macOS's resolver.
     /// A name that doesn't resolve while its VIP answers points at
     /// `/etc/resolver` (or the DNS container), not at the Service.
@@ -1049,7 +1121,7 @@ final class AppModel {
             async let metricsTask = kube.metricsServerReady()
             async let versionTask = kube.clusterVersion()
             let dnsOn = localDNS?.enabled == true
-            async let externalDNSTask: ExternalDNSState? = dnsOn ? kube.externalDNSState() : nil
+            async let externalDNSTask: ExternalDNSInfo? = dnsOn ? kube.externalDNS() : nil
             async let recordsTask: Void = refreshDNSRecords()
             let nodes = try await nodesTask
             let pods = try await podsTask
@@ -1064,7 +1136,8 @@ final class AppModel {
                 pods: pods,
                 services: services,
                 metricsServerReady: metricsReady,
-                externalDNS: externalDNS,
+                externalDNS: externalDNS?.state,
+                externalDNSIngress: externalDNS?.publishesIngress,
                 serverVersion: version,
                 loading: false,
                 error: nil

@@ -88,6 +88,7 @@ marina-ui/
 │   │   ├── ContainerDetailView.swift   # user's container: compose stack, ports, labels, logs, lifecycle
 │   │   ├── ConsoleLogView.swift        # collapsible aggregated console panel (bottom of detail)
 │   │   ├── LogConsoleView.swift        # scrollable colorized log box (per-view "Last action" cards)
+│   │   ├── SystemResolverBanner.swift  # "apps on this Mac don't resolve the zone" (MDM DNS profile / DNS proxy)
 │   │   ├── FleetDeletionDialog.swift   # shared `marina fleet delete` confirmation (sidebar + overview)
 │   │   └── NewClusterSheet.swift       # modal for `marina cluster create`
 │   └── Resources/
@@ -348,6 +349,27 @@ cluster writes into etcd, CoreDNS on the kind network (`x.y.255.53`) serves it, 
   but only a `marina dns attach` applies it to an existing cluster.
   `AppModel.clustersWithUnroutedRecords` drives a **Re-attach** button on the cluster
   Info card and per-cluster buttons in Diagnostics.
+- **The Mac's own resolver can be bypassed** (marina 0.3.3). An MDM encrypted-DNS
+  profile (`com.apple.dnsSettings.managed`, e.g. Kandji → Quad9 DoH) sends every
+  lookup past `/etc/resolver`: curl and browsers get NXDOMAIN while `dig @server`
+  and the doctor `dns` check are fine. marina publishes `marina-probe.<domain>` →
+  the server IP for this. `AppModel.checkSystemResolver()` (on `refreshAll`, in a
+  background task — a DoH lookup can take seconds) resolves it with `getaddrinfo`;
+  on failure `/usr/bin/dig @server` separates `.probeMissing` (DNS set up by an older
+  marina; `marina up` adds the record) from `.bypassed(profile:)`, and
+  `ManagedDNSProfile.find()` reads the profile from `/Library/Managed Preferences`
+  like marina does. `SystemResolverBanner` says it once above the Services tab's
+  names (their red dots then point at it) and under Diagnostics › Local DNS, with
+  the exemption to ask the MDM admin for (`OnDemandRules` `EvaluateConnection`,
+  `DomainAction: NeverConnect`). The matching doctor check is `dns-system-resolver`;
+  its `fix` is prose when a profile is the cause, so `DoctorCheck.fixIsCommand`
+  renders it as text rather than a copyable command.
+- **Ingress hosts are opt-in** (`network.dns.ingress`, marina 0.3.0). The Ingress
+  source made `--fqdn-template` name every Ingress object too. `KubeClient.externalDNS()`
+  reads whether the deployment runs `--source=ingress`;
+  `AppModel.ingressSourceDrift(for:)` compares it with the config, and a mismatch
+  (typically a cluster attached before 0.3.0) gets the **Re-attach** button on the
+  cluster Info card. The `same VIP` badge's tooltip follows the deployed source.
 - macOS negative-caches a failed lookup for **~75 s** regardless of the zone's SOA, so a
   name looked up before ExternalDNS published it stays red that long.
 

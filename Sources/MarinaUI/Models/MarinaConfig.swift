@@ -37,14 +37,17 @@ struct MarinaConfig: Sendable, Hashable, Decodable {
         /// (marina 0.1.60+). Absent means marina inherits whatever macOS has —
         /// which is the common case, so absence is not "no proxy".
         let proxy: Proxy?
-        /// Local DNS zone settings (marina 0.2.0+). Only `nameTemplate` is read
-        /// from here; live state comes from `marina status`.
+        /// Local DNS zone settings (marina 0.2.0+). Only `nameTemplate` and
+        /// `ingress` are read from here; live state comes from `marina status`.
         let dns: DNS?
 
         struct DNS: Sendable, Hashable, Decodable {
             /// ExternalDNS `--fqdn-template` relative to `<cluster>.<domain>`
             /// (marina 0.2.2+). nil means marina's default `{{.Name}}.{{.Namespace}}`.
             let nameTemplate: String?
+            /// Whether ExternalDNS also publishes Ingress hosts (`--source=ingress`,
+            /// marina 0.3.0+). nil means off — marina's default since 0.3.0.
+            let ingress: Bool?
         }
 
         struct Proxy: Sendable, Hashable, Decodable {

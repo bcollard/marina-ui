@@ -54,8 +54,17 @@ struct DoctorCheck: Sendable, Hashable, Decodable, Identifiable {
         case "rosetta-vm": return "Rosetta 2 (VM)"
         case "proxy": return "HTTP proxy"
         case "dns": return "Local DNS"
+        case "dns-system-resolver": return "Local DNS via macOS resolver"
         case "tls": return "Local CA"
         default: return id
         }
+    }
+
+    /// Whether `fix` is a command to paste into a terminal. Some fixes are a
+    /// request for someone else — `dns-system-resolver` names the exemption an
+    /// MDM admin has to add — and must not render as a shell command.
+    var fixIsCommand: Bool {
+        guard let fix else { return false }
+        return fix.hasPrefix("marina ") || fix.hasPrefix("sudo ")
     }
 }

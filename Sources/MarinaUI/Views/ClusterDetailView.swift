@@ -479,7 +479,9 @@ struct ClusterDetailView: View {
     private func localDNSCard(zone: String) -> some View {
         let names = model.dnsRecords(in: cluster.name)
         let state = detail?.externalDNS
-        let stale = model.clustersWithUnroutedRecords.contains(cluster.name)
+        let unrouted = model.clustersWithUnroutedRecords.contains(cluster.name)
+        let ingressDrift = model.ingressSourceDrift(for: cluster.name) == true
+        let stale = unrouted || ingressDrift
         return GroupBox("Local DNS") {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
@@ -522,7 +524,15 @@ struct ClusterDetailView: View {
                         .disabled(model.inFlightAction != nil)
                     }
                 }
-                if stale {
+                if ingressDrift {
+                    Label(model.dnsIngressEnabled
+                          ? "network.dns.ingress is on, but this cluster's ExternalDNS was installed without the Ingress source. Re-attach to publish Ingress hosts."
+                          : "This cluster's ExternalDNS still publishes Ingress hosts (installed before marina 0.3.0 or with network.dns.ingress on). Re-attach to remove those names; to keep one, put an external-dns.kubernetes.io/hostname annotation on the ingress controller's Service.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                if unrouted {
                     Label("Some names here point at pod IPs the Mac can't reach. An ExternalDNS installed by marina 0.2.0 published every Service type, headless ones included; re-attaching limits it to LoadBalancer Services and removes the extras.",
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)

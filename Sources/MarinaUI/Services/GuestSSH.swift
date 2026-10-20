@@ -126,6 +126,17 @@ struct GuestSSH: Sendable {
         return (kernel, lines.count >= 2 ? lines[1] : nil)
     }
 
+    /// Root and image-cache disk usage. Split out from `stats()` for the same
+    /// backfill reason as `osInfo()`.
+    func diskUsage() async -> (root: DiskUsage?, image: DiskUsage?)? {
+        guard let out = try? await run(Self.dfCommand) else { return nil }
+        let disks = parseDiskUsage(out)
+        return disks.root == nil ? nil : disks
+    }
+
+    private static let dfCommand =
+        "df -k --output=source,size,used,avail / /var/lib/containerd 2>/dev/null || true"
+
     /// `uname -r` then the unquoted PRETTY_NAME from /etc/os-release.
     private static let osCommand =
         #"uname -r; sed -n 's/^PRETTY_NAME="\(.*\)"/\1/p' /etc/os-release"#
@@ -151,7 +162,7 @@ struct GuestSSH: Sendable {
         guard let out = try? await run(
             "uptime -p; echo ---; cat /proc/loadavg; echo ---; head -3 /proc/meminfo; echo ---; "
             + Self.osCommand
-            + "; echo ---; df -k --output=source,size,used,avail / /var/lib/containerd 2>/dev/null || true"
+            + "; echo ---; " + Self.dfCommand
         ) else { return empty }
 
         let sections = out.components(separatedBy: "---")

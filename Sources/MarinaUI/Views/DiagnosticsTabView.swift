@@ -230,6 +230,20 @@ struct DiagnosticsTabView: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
+                if let state = model.systemResolver {
+                    LabeledContent("Apps on this Mac") {
+                        HStack(spacing: 6) {
+                            Text(verbatim: "\(SystemResolverState.probeLabel).\(dns.domain ?? "")")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                            dnsStateBadge(resolverPart(state))
+                        }
+                    }
+                    .help("Resolved with getaddrinfo, the path curl and browsers take. The DNS server row above answers dig; this row is what apps actually see.")
+                    if state != .ok, let domain = dns.domain {
+                        SystemResolverBanner(state: state, domain: domain)
+                    }
+                }
                 LabeledContent("Published names") {
                     if let records = model.dnsRecords {
                         Text("\(records.count)")
@@ -373,6 +387,14 @@ struct DiagnosticsTabView: View {
         var parts = ["\(c) cluster\(c == 1 ? "" : "s")"]
         if f > 0 { parts.append("\(f) fleet\(f == 1 ? "" : "s")") }
         return parts.joined(separator: ", ")
+    }
+
+    private func resolverPart(_ state: SystemResolverState) -> DNSPartState {
+        switch state {
+        case .ok: return .ok("resolves")
+        case .probeMissing: return .unknown("untested")
+        case .bypassed: return .bad("bypassed")
+        }
     }
 
     private enum DNSPartState {
@@ -541,7 +563,13 @@ private struct DoctorCheckRow: View {
                     .textSelection(.enabled)
                     .padding(.leading, 20)
             }
-            if check.status != .ok, let fix = check.fix, !fix.isEmpty {
+            if check.status != .ok, let fix = check.fix, !fix.isEmpty, !check.fixIsCommand {
+                Text(fix)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .padding(.leading, 20)
+            } else if check.status != .ok, let fix = check.fix, !fix.isEmpty {
                 HStack(spacing: 6) {
                     Text(fix)
                         .font(.caption.monospaced())

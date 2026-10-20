@@ -50,7 +50,26 @@ struct KubePod: Decodable, Sendable, Hashable, Identifiable {
 struct KubeDeployment: Decodable, Sendable, Hashable, Identifiable {
     var id: String { "\(metadata.namespace ?? "")/\(metadata.name)" }
     let metadata: ObjectMeta
+    let spec: Spec?
     let status: Status
+
+    struct Spec: Decodable, Sendable, Hashable {
+        let template: Template?
+        struct Template: Decodable, Sendable, Hashable {
+            let spec: PodSpec?
+        }
+        struct PodSpec: Decodable, Sendable, Hashable {
+            let containers: [Container]?
+        }
+        struct Container: Decodable, Sendable, Hashable {
+            let args: [String]?
+        }
+    }
+
+    /// Every container arg, flattened.
+    var containerArgs: [String] {
+        spec?.template?.spec?.containers?.flatMap { $0.args ?? [] } ?? []
+    }
 
     struct Status: Decodable, Sendable, Hashable {
         let replicas: Int?
