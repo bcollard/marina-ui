@@ -5,7 +5,7 @@ let package = Package(
     name: "MarinaUI",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.0"),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.4.0"),
     ],
     targets: [
         .executableTarget(
