@@ -55,9 +55,30 @@ struct NewFleetSheet: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("Clusters").font(.callout.weight(.medium))
-                TextField("dev, staging, prod", text: $clusterText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(3...6)
+                // TextEditor, not a vertical TextField: in a sheet with a
+                // default-action button, Return in a TextField submits.
+                TextEditor(text: $clusterText)
+                    .font(.body)
+                    .scrollContentBackground(.hidden)
+                    .padding(4)
+                    .frame(height: 90)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(nsColor: .textBackgroundColor))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                    )
+                    .overlay(alignment: .topLeading) {
+                        if clusterText.isEmpty {
+                            Text("dev\nstaging\nprod")
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 4)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 Text("Separate names with commas, spaces or new lines. Existing clusters join the fleet.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

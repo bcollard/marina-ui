@@ -216,6 +216,7 @@ struct OverviewDetailView: View {
                 NewItemCard(
                     title: "New fleet",
                     help: "Create a fleet: a named group of clusters",
+                    tint: UIZone.fleet.color,
                     disabled: model.vm?.isRunning != true || model.inFlightAction != nil,
                     disabledReason: model.vm?.isRunning == true ? nil : "Start the VM first"
                 ) {
@@ -679,6 +680,7 @@ private struct ProvisioningClusterCard: View {
 private struct NewItemCard: View {
     let title: String
     let help: String
+    var tint: Color = .accentColor
     let disabled: Bool
     let disabledReason: String?
     let action: () -> Void
@@ -690,7 +692,7 @@ private struct NewItemCard: View {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 28))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(disabled ? Color.secondary : Color.accentColor)
+                    .foregroundStyle(disabled ? Color.secondary : tint)
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(disabled ? Color.secondary : Color.primary)
