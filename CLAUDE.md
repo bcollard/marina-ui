@@ -83,6 +83,7 @@ marina-ui/
 │   │   ├── WorkloadsTabView.swift      # workloads → pods, live 5 s refresh, logs, rollout restart, delete pod
 │   │   ├── PodLogsView.swift           # log viewer: pod container, workload (-l --prefix) or Docker container
 │   │   ├── FleetDetailView.swift       # fleet: members, options, addons, status, manifest YAML
+│   │   ├── UpdateBanner.swift          # overview "new version" cards + Settings › About › Updates section
 │   │   ├── UIZone.swift                # per-area accent colour + symbol (VM, fleet, cluster, mirror, container, mounts)
 │   │   ├── ServicesTabView.swift       # LoadBalancer services with per-port TCP probes
 │   │   ├── MirrorDetailView.swift      # mirror config + cache storage + usage hint
@@ -605,3 +606,22 @@ The sandbox would block: `ssh` to arbitrary hosts, reading `~/.marina/` without 
   re-reads the tail every 2 s, which survives pod restarts with one code path.
 - **Colours**: `UIZone` gives each area one accent (VM teal, fleet indigo, cluster blue,
   mirror orange, container purple, mounts brown). Green/orange/red stay reserved for health.
+
+
+---
+
+## Update check (v0.5)
+
+- `UpdateChecker` asks `api.github.com/repos/<repo>/releases/latest` for **bcollard/marina-ui** and
+  **bcollard/marina** when the last successful check is older than 14 days (re-evaluated every 6 h while
+  the app runs), and on "Check now" in Settings › About. Toggle: `settings.checkForUpdates` (default on).
+  "Skip this version" is stored per product (`updates.skipped.<app|cli>`).
+- **Updates go through Homebrew, never a self-replacing download.** Both products are casks: brew checks
+  the SHA-256, Gatekeeper the notarization, and `brew list` stays truthful. Sparkle was rejected for the
+  same reason (it would update behind brew's back, needing `auto_updates true` and an appcast to maintain).
+  Brew-managed = a `Caskroom/<cask>` dir exists; otherwise only the release page is offered.
+- App: `brew update && brew upgrade --cask marina-ui`, then `relaunch()` (sh `sleep 1; open <bundle>`,
+  `NSApp.terminate`). CLI: confirmed, then `marina down` → `brew update` → `brew upgrade --cask marina` →
+  `marina up` (always run, so the VM is never left down). The VM must be down while the binary is
+  replaced: a running hostagent makes amfid kill the next `marina` exec ("zsh: killed").
+- Verified 2026-11-07 end to end: CLI 0.3.10 → 0.3.11 (VM down/up) and app 0.3.1 → 0.4.1 with relaunch.

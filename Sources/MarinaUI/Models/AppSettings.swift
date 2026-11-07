@@ -40,6 +40,26 @@ final class AppSettings {
     /// How often we poll cluster metrics (node + pod CPU/memory) via metrics-server.
     var metricsPollSeconds: Double { didSet { store.set(metricsPollSeconds, forKey: Keys.metricsPollSeconds) } }
 
+    // MARK: Updates
+
+    /// Look for new Marina UI / marina CLI releases every 14 days (one GitHub
+    /// API call per product). "Check now" works either way.
+    var checkForUpdates: Bool { didSet { store.set(checkForUpdates, forKey: Keys.checkForUpdates) } }
+
+    /// When the last successful update check ran.
+    var lastUpdateCheck: Date? {
+        get { store.object(forKey: Keys.lastUpdateCheck) as? Date }
+        set { store.set(newValue, forKey: Keys.lastUpdateCheck) }
+    }
+
+    /// "Skip this version": the release stops being offered until a newer one.
+    func skippedVersion(for product: String) -> String? {
+        store.string(forKey: Keys.skippedVersionPrefix + product)
+    }
+    func setSkippedVersion(_ v: String, for product: String) {
+        store.set(v, forKey: Keys.skippedVersionPrefix + product)
+    }
+
     // MARK: Durations for the poll loops (clamped to safe minimums)
 
     var clusterRefreshInterval: Duration { .seconds(max(2, clusterRefreshSeconds)) }
@@ -60,6 +80,7 @@ final class AppSettings {
             Keys.clusterRefreshSeconds: 6.0,
             Keys.vmPollSeconds: 5.0,
             Keys.metricsPollSeconds: 15.0,
+            Keys.checkForUpdates: true,
         ])
         showConsoleLog = store.bool(forKey: Keys.showConsoleLog)
         showMirrors = store.bool(forKey: Keys.showMirrors)
@@ -68,6 +89,7 @@ final class AppSettings {
         clusterRefreshSeconds = store.double(forKey: Keys.clusterRefreshSeconds)
         vmPollSeconds = store.double(forKey: Keys.vmPollSeconds)
         metricsPollSeconds = store.double(forKey: Keys.metricsPollSeconds)
+        checkForUpdates = store.bool(forKey: Keys.checkForUpdates)
     }
 
     private enum Keys {
@@ -78,5 +100,8 @@ final class AppSettings {
         static let clusterRefreshSeconds = "settings.clusterRefreshSeconds"
         static let vmPollSeconds = "settings.vmPollSeconds"
         static let metricsPollSeconds = "settings.metricsPollSeconds"
+        static let checkForUpdates = "settings.checkForUpdates"
+        static let lastUpdateCheck = "updates.lastCheck"
+        static let skippedVersionPrefix = "updates.skipped."
     }
 }

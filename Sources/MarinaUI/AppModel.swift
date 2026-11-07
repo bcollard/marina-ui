@@ -9,8 +9,12 @@ final class AppModel {
     /// the next cycle without restarting anything.
     let settings: AppSettings
 
+    /// Release checks and brew-driven updates for the app and the CLI.
+    let updates: UpdateChecker
+
     init(settings: AppSettings) {
         self.settings = settings
+        self.updates = UpdateChecker(settings: settings)
     }
 
     // The single marina VM. Marina is designed around exactly one instance at a time.
@@ -491,6 +495,7 @@ final class AppModel {
         await refreshAll()
         startVMPollingIfRunning()
         startStatePolling()
+        updates.startSchedule { [weak self] in self?.marinaVersion }
     }
 
     /// Poll for out-of-band changes: VM started/stopped, or clusters created/
