@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Modal sheet for naming a new kind cluster. Presented from the sidebar's `+`
+/// Modal sheet for naming a new cluster. Presented from the sidebar's `+`
 /// button and from the home dashboard's create-cluster tile.
 struct NewClusterSheet: View {
     @Bindable var model: AppModel
@@ -9,10 +9,7 @@ struct NewClusterSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Create kind cluster").font(.title3.bold())
-            Text("Marina assigns the next free num and API port.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            Text("Create cluster").font(.title3.bold())
             TextField("cluster name", text: $name)
                 .textFieldStyle(.roundedBorder)
             HStack {

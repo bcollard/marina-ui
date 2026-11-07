@@ -96,7 +96,8 @@ marina-ui/
 │   │   ├── LogConsoleView.swift        # scrollable colorized log box (per-view "Last action" cards)
 │   │   ├── SystemResolverBanner.swift  # "apps on this Mac don't resolve the zone" (MDM DNS profile / DNS proxy)
 │   │   ├── FleetDeletionDialog.swift   # shared `marina fleet delete` confirmation (sidebar + overview)
-│   │   └── NewClusterSheet.swift       # modal for `marina cluster create`
+│   │   ├── NewClusterSheet.swift       # modal for `marina cluster create`
+│   │   └── NewFleetSheet.swift         # modal for `marina fleet create -f <tmp> --adopt` (fleet name + cluster names)
 │   └── Resources/
 │       └── marina-logo.png             # used both for in-app branding and AppIcon (via swift-bundler)
 └── .gitignore
