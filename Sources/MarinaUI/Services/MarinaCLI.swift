@@ -39,6 +39,23 @@ enum MarinaCLI {
         }
     }
 
+    /// `marina fleet describe <name> -o json`: members, their options and
+    /// addons, and the fleet's manifest (marina v0.3.10+ for the latter two).
+    static func describeFleet(_ name: String) async throws -> FleetDescription {
+        let result = try await ProcessRunner.run(executable, ["fleet", "describe", name, "-o", "json"])
+        guard result.ok else {
+            throw CLIError.command("fleet describe", result.exitCode, result.stderr)
+        }
+        guard let data = result.stdout.data(using: .utf8) else {
+            throw CLIError.decode("non-utf8 output")
+        }
+        do {
+            return try JSONDecoder().decode(FleetDescription.self, from: data)
+        } catch {
+            throw CLIError.decode(error.localizedDescription)
+        }
+    }
+
     /// Start (or finish provisioning) the VM. Long-running.
     static func up() async throws -> ProcessResult {
         try await ProcessRunner.run(executable, ["up"])

@@ -98,6 +98,59 @@ struct KubeClient: Sendable {
         return v.serverVersion?.gitVersion
     }
 
+    // MARK: - Workloads tab
+
+    /// Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, and the
+    /// ReplicaSets that link Deployment pods to their Deployment. One call.
+    func listWorkloadObjects() async throws -> [Workload] {
+        try await getList("deployments,statefulsets,daemonsets,jobs,cronjobs,replicasets",
+                          as: Workload.self, allNamespaces: true)
+    }
+
+    func listWorkloadPods() async throws -> [WorkloadPod] {
+        try await getList("pods", as: WorkloadPod.self, allNamespaces: true)
+    }
+
+    struct LogOptions: Sendable, Hashable {
+        var tail: Int = 500
+        var timestamps: Bool = false
+        var previous: Bool = false
+    }
+
+    /// `kubectl logs` for one container of one pod.
+    func podLogs(namespace: String, pod: String, container: String?, options: LogOptions) async throws -> String {
+        var rest = ["logs", "-n", namespace, pod, "--tail=\(options.tail)"]
+        if let container { rest += ["-c", container] }
+        if options.timestamps { rest.append("--timestamps") }
+        if options.previous { rest.append("--previous") }
+        return try await runText(rest, what: "logs \(pod)")
+    }
+
+    /// Every container of every pod matching `selector`, interleaved per pod
+    /// and prefixed `[pod/<name>/<container>]`, like `kubectl logs -l`.
+    func selectorLogs(namespace: String, selector: String, options: LogOptions) async throws -> String {
+        var rest = ["logs", "-n", namespace, "-l", selector, "--all-containers", "--prefix",
+                    "--max-log-requests=20", "--tail=\(options.tail)"]
+        if options.timestamps { rest.append("--timestamps") }
+        return try await runText(rest, what: "logs -l \(selector)")
+    }
+
+    /// `kubectl rollout restart <kind>/<name>`.
+    func rolloutRestart(kind: String, namespace: String, name: String) async throws -> String {
+        try await runText(["rollout", "restart", "\(kind.lowercased())/\(name)", "-n", namespace],
+                          what: "rollout restart")
+    }
+
+    func deletePod(namespace: String, name: String) async throws -> String {
+        try await runText(["delete", "pod", name, "-n", namespace, "--wait=false"], what: "delete pod")
+    }
+
+    private func runText(_ rest: [String], what: String) async throws -> String {
+        let result = try await ProcessRunner.run("kubectl", baseArgs(rest))
+        guard result.ok else { throw KubeError.command(what, result.exitCode, result.stderr) }
+        return result.stdout
+    }
+
     private func getList<T: Decodable & Sendable>(
         _ resource: String,
         as: T.Type,

@@ -94,10 +94,10 @@ struct DockerClient: Sendable {
 
     /// Tail a container's combined stdout/stderr. `--timestamps` is deliberately
     /// off: the entries are usually already timestamped by the app itself.
-    func logs(id: String, lines: Int = 200) async throws -> String {
+    func logs(id: String, lines: Int = 200, timestamps: Bool = false) async throws -> String {
         // docker writes container stdout to our stdout and stderr to stderr;
         // 2>&1 in the guest shell merges them in the order they were written.
-        try await guest.run("docker logs --tail \(lines) \(id) 2>&1")
+        try await guest.run("docker logs --tail \(lines)\(timestamps ? " --timestamps" : "") \(id) 2>&1")
     }
 
     func start(id: String) async throws -> String { try await guest.run("docker start \(id)") }

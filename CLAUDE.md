@@ -57,7 +57,9 @@ marina-ui/
 │   │   ├── MarinaStatus.swift         # decodes `marina status -o json` — VM host mounts, local DNS state
 │   │   ├── LocalDNS.swift              # dns list records, ca status, wildcard coverage, name resolution, ExternalDNS state, IPv4 CIDR
 │   │   ├── DockerContainer.swift       # guest container, compose membership, classification
-│   │   └── SidebarSelection.swift      # enum: .cluster(name) | .mirror(name) | .container(id) | nil
+│   │   ├── FleetDescription.swift      # decodes `marina fleet describe -o json` (options, live addons, manifest — marina 0.3.10+)
+│   │   ├── Workloads.swift             # Workload (deploy/sts/ds/job/cronjob/rs, one type), WorkloadPod, WorkloadSnapshot (owner chains)
+│   │   └── SidebarSelection.swift      # enum: .cluster(name) | .fleet(name) | .mirror(name) | .container(id) | nil
 │   ├── Services/
 │   │   ├── InstanceDiscovery.swift     # scans ~/.marina/, reads vz.pid liveness, lima.yaml
 │   │   ├── SSHConfigParser.swift       # hand-parses OpenSSH config from ssh.config
@@ -77,7 +79,11 @@ marina-ui/
 │   │   ├── RootView.swift              # NavigationSplitView dispatcher
 │   │   ├── SidebarView.swift           # VM card + clusters + mirrors + containers sections
 │   │   ├── OverviewDetailView.swift    # home dashboard with cluster/mirror/container cards + VM charts
-│   │   ├── ClusterDetailView.swift     # Info / Services / Metrics tab picker
+│   │   ├── ClusterDetailView.swift     # Overview / Workloads / Services / Metrics tab picker
+│   │   ├── WorkloadsTabView.swift      # workloads → pods, live 5 s refresh, logs, rollout restart, delete pod
+│   │   ├── PodLogsView.swift           # log viewer: pod container, workload (-l --prefix) or Docker container
+│   │   ├── FleetDetailView.swift       # fleet: members, options, addons, status, manifest YAML
+│   │   ├── UIZone.swift                # per-area accent colour + symbol (VM, fleet, cluster, mirror, container, mounts)
 │   │   ├── ServicesTabView.swift       # LoadBalancer services with per-port TCP probes
 │   │   ├── MirrorDetailView.swift      # mirror config + cache storage + usage hint
 │   │   ├── MetricsChartsView.swift     # cluster CPU/mem charts + top pods table
@@ -577,3 +583,25 @@ The sandbox would block: `ssh` to arbitrary hosts, reading `~/.marina/` without 
 - **MetalLB IP allocation map.** Pull `MetalLB`'s `IPAddressPool` CRDs and show which ranges are in use vs free.
 - **VM resize.** Edit `lima.yaml` (cpus/memory/disk) and trigger `marina restart` from the UI.
 - **Mirror prune.** Surface aged tags and offer a "delete tag" action via the registry HTTP API.
+
+
+---
+
+## Fleets, workloads and logs (v0.4)
+
+- **Fleet view** (`.fleet(name)`, opened from the sidebar's fleet header or the overview's
+  fleet heading): reads `marina fleet describe <name> -o json`. Options (`dependsOn`,
+  registries, declared addons) come from each member's `kube-system/marina-fleet` record,
+  which marina ≥ 0.3.10 writes at `fleet create`/`--adopt`. Addons are detected live, so a
+  member whose manifest enables metrics-server but has no Deployment shows "missing". The
+  manifest is the newest record, or one rebuilt like `fleet export` (`manifestSource`).
+- **Workloads tab**: one `kubectl get deployments,statefulsets,daemonsets,jobs,cronjobs,replicasets -A`
+  plus `get pods -A` per refresh, every 5 s while "Live" is on (polling, not watch streams).
+  ReplicaSets are fetched only to resolve Deployment → pod ownership; Jobs owned by a
+  CronJob are listed under it. System namespaces are hidden by default.
+- **Logs never touch containerd/crictl.** Pod logs are `kubectl logs` (API server →
+  kubelet → CRI log files), workload logs `kubectl logs -l <selector> --all-containers
+  --prefix`, Docker container logs `docker logs` over the guest SSH session. "Follow"
+  re-reads the tail every 2 s, which survives pod restarts with one code path.
+- **Colours**: `UIZone` gives each area one accent (VM teal, fleet indigo, cluster blue,
+  mirror orange, container purple, mounts brown). Green/orange/red stay reserved for health.

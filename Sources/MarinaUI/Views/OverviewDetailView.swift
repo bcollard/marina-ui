@@ -144,9 +144,10 @@ struct OverviewDetailView: View {
     private var clustersSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader(
-                title: "Clusters",
+                title: "Fleets & Clusters",
                 count: model.clusters.count,
-                trailing: clustersHeaderTrailing
+                trailing: clustersHeaderTrailing,
+                zone: .cluster
             )
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(model.clusterGroups) { group in
@@ -155,6 +156,15 @@ struct OverviewDetailView: View {
                             fleetGroupHeader(group)
                             clusterGrid(group.clusters)
                         }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(UIZone.fleet.color.opacity(0.05))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(UIZone.fleet.color.opacity(0.22), lineWidth: 1)
+                        )
                     }
                 }
                 // Ungrouped clusters, plus the provisioning and "new" cards,
@@ -202,11 +212,18 @@ struct OverviewDetailView: View {
 
     private func fleetGroupHeader(_ group: ClusterGroup) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.caption)
-                .foregroundStyle(.blue)
-            Text(group.fleet ?? "")
+            ZoneIcon(zone: .fleet, size: 18)
+            Text("Fleet")
                 .font(.headline)
+                .foregroundStyle(UIZone.fleet.color)
+            Button {
+                model.selection = .fleet(name: group.fleet ?? "")
+            } label: {
+                Text(group.fleet ?? "")
+                    .font(.headline)
+            }
+            .buttonStyle(.link)
+            .help("Open fleet \"\(group.fleet ?? "")\": members, options, addons and manifest")
             Text("\(group.clusters.count) cluster\(group.clusters.count == 1 ? "" : "s")")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -230,7 +247,7 @@ struct OverviewDetailView: View {
 
     private var mirrorsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionHeader(title: "Registry mirrors", count: model.mirrors.count, trailing: nil)
+            sectionHeader(title: "Registry mirrors", count: model.mirrors.count, trailing: nil, zone: .mirror)
             if model.mirrors.isEmpty {
                 emptyCard("No mirrors configured.")
             } else {
@@ -270,7 +287,8 @@ struct OverviewDetailView: View {
                         .buttonStyle(.borderless)
                         .help("Re-list the VM's containers")
                     }
-                )
+                ),
+                zone: .container
             )
             if model.vm?.isRunning != true {
                 emptyCard("Start the VM to view containers.")
@@ -370,7 +388,8 @@ struct OverviewDetailView: View {
             sectionHeader(
                 title: "Volume mounts",
                 count: user.count,
-                trailing: mounts.pendingRestart ? AnyView(pendingRestartBadge) : nil
+                trailing: mounts.pendingRestart ? AnyView(pendingRestartBadge) : nil,
+                zone: .mounts
             )
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ordered) { share in
@@ -428,8 +447,9 @@ struct OverviewDetailView: View {
 
     // MARK: - Bits
 
-    private func sectionHeader(title: String, count: Int, trailing: AnyView?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+    private func sectionHeader(title: String, count: Int, trailing: AnyView?, zone: UIZone? = nil) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            if let zone { ZoneIcon(zone: zone, size: 22) }
             Text(title).font(.title3.bold())
             Text("\(count)")
                 .font(.caption.monospacedDigit())
@@ -488,7 +508,7 @@ private struct ClusterCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.secondary.opacity(hovering ? 0.15 : 0.08))
+                    .fill(UIZone.cluster.color.opacity(hovering ? 0.16 : 0.07))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -531,7 +551,7 @@ private struct MirrorCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.secondary.opacity(hovering ? 0.15 : 0.08))
+                    .fill(UIZone.mirror.color.opacity(hovering ? 0.16 : 0.07))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -553,8 +573,8 @@ private struct ContainerCard: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "shippingbox.fill")
-                        .foregroundStyle(container.isRunning ? .teal : .gray)
+                    Image(systemName: UIZone.container.symbol)
+                        .foregroundStyle(container.isRunning ? UIZone.container.color : .gray)
                     // Within a stack the service is the identity; the full name
                     // is `<project>-<service>-<n>` on every card.
                     Text(container.compose?.serviceLabel ?? container.name)
@@ -585,7 +605,7 @@ private struct ContainerCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.secondary.opacity(hovering ? 0.15 : 0.08))
+                    .fill(UIZone.container.color.opacity(hovering ? 0.16 : 0.07))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -628,7 +648,7 @@ private struct ProvisioningClusterCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.secondary.opacity(hovering ? 0.15 : 0.08))
+                    .fill(UIZone.cluster.color.opacity(hovering ? 0.16 : 0.07))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)

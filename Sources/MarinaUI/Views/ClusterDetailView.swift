@@ -11,7 +11,7 @@ struct ClusterDetailView: View {
     @State private var confirmAttach = false
     @State private var confirmCAAttach = false
 
-    enum Tab: Hashable { case info, services, metrics }
+    enum Tab: Hashable { case info, workloads, services, metrics }
 
     private var detail: AppModel.ClusterDetail? {
         if model.clusterDetail?.cluster.name == cluster.name {
@@ -31,12 +31,13 @@ struct ClusterDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 header
                 Picker("", selection: $tab) {
-                    Text("Info").tag(Tab.info)
-                    Text("Services").tag(Tab.services)
-                    Text("Metrics").tag(Tab.metrics)
+                    Label("Overview", systemImage: "info.circle").tag(Tab.info)
+                    Label("Workloads", systemImage: "square.stack.3d.down.right").tag(Tab.workloads)
+                    Label("Services", systemImage: "network").tag(Tab.services)
+                    Label("Metrics", systemImage: "chart.xyaxis.line").tag(Tab.metrics)
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 360, alignment: .leading)
+                .frame(maxWidth: 560, alignment: .leading)
                 .padding(.top, 10)
             }
             .padding(.horizontal, 20)
@@ -58,6 +59,8 @@ struct ClusterDetailView: View {
                             localDNSCard(zone: zone)
                         }
                         kubeconfigCard
+                    case .workloads:
+                        WorkloadsTabView(cluster: cluster)
                     case .services:
                         ServicesTabView(
                             model: model,
@@ -105,7 +108,10 @@ struct ClusterDetailView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(cluster.name).font(.largeTitle.bold())
+                HStack(spacing: 8) {
+                    ZoneIcon(zone: .cluster, size: 30)
+                    Text(cluster.name).font(.largeTitle.bold())
+                }
                 TimelineView(.periodic(from: .now, by: 60)) { context in
                     HStack(spacing: 12) {
                         if let fleet = nodeLabels?[Self.fleetLabelKey] {
@@ -255,17 +261,22 @@ struct ClusterDetailView: View {
     /// Fleet gets a distinct filled badge with the stack icon so it stands out
     /// from the plain grey label pills.
     private func fleetBadge(_ value: String) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "square.stack.3d.up.fill")
-            Text("fleet").foregroundStyle(.white.opacity(0.75))
-            Text(value).bold()
+        Button {
+            model.selection = .fleet(name: value)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: UIZone.fleet.symbol)
+                Text("fleet").foregroundStyle(.white.opacity(0.75))
+                Text(value).bold()
+            }
+            .font(.caption)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(UIZone.fleet.color.gradient))
         }
-        .font(.caption)
-        .foregroundStyle(.white)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Capsule().fill(Color.blue))
-        .help("Fleet: \(value)")
+        .buttonStyle(.plain)
+        .help("Fleet \(value): open the fleet view")
     }
 
     /// Dashed-blue "Add label" chip — mirrors the New Cluster tile's dashed
