@@ -101,6 +101,8 @@ private struct AboutTab: View {
                 )
             }
 
+            UpdatesSection(model: model)
+
             Section("Guest VM") {
                 row("Distribution", model.guestStats?.osName, icon: "opticaldiscdrive")
                 row("Kernel", model.guestStats?.kernel, icon: "cpu")

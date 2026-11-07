@@ -34,6 +34,7 @@ struct OverviewDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                UpdateBanner(model: model)
                 hero
                 clustersSection
                 if settings.showMirrors {
