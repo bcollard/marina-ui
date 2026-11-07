@@ -238,7 +238,9 @@ struct FleetDetailView: View {
     }
 
     private func label(_ s: String) -> some View {
-        Text(s).font(.caption).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+        // Fixed width: each member is its own Grid, so the column must not size to its content.
+        Text(s).font(.caption).foregroundStyle(.secondary)
+            .frame(width: 84, alignment: .trailing)
     }
 
     private func pill(_ title: String, _ value: String, color: Color = .secondary) -> some View {

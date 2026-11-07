@@ -535,7 +535,7 @@ private struct MirrorCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(UIZone.mirror.color)
                     Text(mirror.name).font(.headline)
                     Spacer()
                     Image(systemName: "chevron.right")

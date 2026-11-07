@@ -49,12 +49,13 @@ struct ZoneTag: View {
     let text: String
 
     var body: some View {
+        // Solid fill + white text: stays legible on a selected (accent-coloured) row.
         Text(text.uppercased())
             .font(.system(size: 9, weight: .bold))
             .tracking(0.6)
-            .foregroundStyle(zone.color)
+            .foregroundStyle(.white)
             .padding(.horizontal, 5)
             .padding(.vertical, 1.5)
-            .background(Capsule().fill(zone.color.opacity(0.14)))
+            .background(Capsule().fill(zone.color.gradient))
     }
 }

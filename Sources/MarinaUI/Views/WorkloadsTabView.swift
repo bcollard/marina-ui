@@ -220,7 +220,14 @@ struct WorkloadsTabView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .help(pods.isEmpty ? "No pods" : "\(pods.count) pod\(pods.count == 1 ? "" : "s")")
 
-            Text(w.kind).font(.caption).foregroundStyle(.secondary).frame(width: 92, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(w.kind).font(.caption).foregroundStyle(.secondary)
+                if let schedule = w.spec?.schedule {
+                    Text(schedule).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                        .lineLimit(1).help("Schedule")
+                }
+            }
+            .frame(width: 92, alignment: .leading)
             Text(ready).font(.callout.monospacedDigit()).foregroundStyle(color(health) == .green ? .primary : color(health))
                 .frame(width: 92, alignment: .leading)
             age(w.metadata.createdAt).frame(width: 56, alignment: .trailing)
