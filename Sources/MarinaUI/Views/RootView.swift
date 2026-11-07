@@ -87,6 +87,12 @@ struct RootView: View {
             } else {
                 OverviewDetailView(model: model)
             }
+        case .fleet(let name):
+            if model.clusterGroups.contains(where: { $0.fleet == name }) {
+                FleetDetailView(model: model, fleet: name)
+            } else {
+                OverviewDetailView(model: model)
+            }
         case .none:
             OverviewDetailView(model: model)
         }

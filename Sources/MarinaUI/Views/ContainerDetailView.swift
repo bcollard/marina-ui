@@ -9,6 +9,7 @@ struct ContainerDetailView: View {
     let container: DockerContainer
 
     @State private var logLines = 200
+    @State private var showLogViewer = false
 
     /// Published ports are reachable from macOS at the VM's lima0 address.
     /// Lima additionally mirrors them onto 127.0.0.1, but marina's
@@ -390,6 +391,17 @@ struct ContainerDetailView: View {
                 .buttonStyle(.borderless)
                 .help("Re-read the last \(logLines) lines")
                 Spacer()
+                Button {
+                    showLogViewer = true
+                } label: {
+                    Label("Open log viewer", systemImage: "arrow.up.left.and.arrow.down.right")
+                }
+                .controlSize(.small)
+                .help("Search, follow, timestamps, copy and save")
+                .disabled(model.docker == nil)
+            }
+            .sheet(isPresented: $showLogViewer) {
+                PodLogsView(source: .docker(id: container.id, name: container.name), docker: model.docker)
             }
             LogConsoleView(
                 title: "docker logs --tail \(logLines) \(container.shortID)",

@@ -34,6 +34,7 @@ struct SidebarView: View {
                             FleetGroupHeader(model: model, group: group) {
                                 fleetPendingDeletion = group
                             }
+                            .tag(SidebarSelection.fleet(name: group.fleet ?? ""))
                         }
                         ForEach(group.clusters) { c in
                             ClusterRow(
@@ -60,7 +61,8 @@ struct SidebarView: View {
                 }
             } header: {
                 HStack(spacing: 8) {
-                    Text("Clusters")
+                    ZoneIcon(zone: .cluster, size: 16)
+                    Text("Fleets & Clusters")
                         .font(.headline)
                         .textCase(nil)
                     Button {
@@ -96,10 +98,13 @@ struct SidebarView: View {
                         }
                     }
                 } header: {
-                    Text("Registry mirrors")
-                        .font(.headline)
-                        .textCase(nil)
-                        .padding(.bottom, 6)
+                    HStack(spacing: 8) {
+                        ZoneIcon(zone: .mirror, size: 16)
+                        Text("Registry mirrors")
+                            .font(.headline)
+                            .textCase(nil)
+                    }
+                    .padding(.bottom, 6)
                 }
             }
 
@@ -135,6 +140,7 @@ struct SidebarView: View {
                     }
                 } header: {
                     HStack(spacing: 8) {
+                        ZoneIcon(zone: .container, size: 16)
                         Text("Docker containers")
                             .font(.headline)
                             .textCase(nil)
@@ -268,8 +274,8 @@ private struct ClusterRow: View {
     }
 }
 
-/// Heading for one fleet inside the Clusters section. Not tagged, so it never
-/// becomes a selectable row.
+/// Heading for one fleet inside the Clusters section. Tagged
+/// `.fleet(name:)`, so selecting it opens the fleet view.
 private struct FleetGroupHeader: View {
     @Bindable var model: AppModel
     let group: ClusterGroup
@@ -277,9 +283,10 @@ private struct FleetGroupHeader: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: "square.stack.3d.up.fill")
+            Image(systemName: UIZone.fleet.symbol)
                 .font(.caption2)
-                .foregroundStyle(.blue)
+                .foregroundStyle(UIZone.fleet.color)
+            ZoneTag(zone: .fleet, text: "Fleet")
             Text(group.fleet ?? "")
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
@@ -303,7 +310,7 @@ private struct FleetGroupHeader: View {
         }
         .font(.caption2)
         .padding(.top, 4)
-        .help("Fleet \"\(group.fleet ?? "")\" (marina.run/fleet)")
+        .help("Fleet \"\(group.fleet ?? "")\" — click for members, options, addons and manifest")
     }
 }
 

@@ -852,7 +852,7 @@ final class AppModel {
             }
             await loadClusterDetail(for: cluster)
             startMetricsPollingIfReady(for: cluster)
-        case .mirror, .container, .none:
+        case .mirror, .container, .fleet, .none:
             clusterDetail = nil
         }
     }
@@ -1340,7 +1340,9 @@ final class AppModel {
     // MARK: - Guest containers
 
     /// Guest-side docker client, or nil when the VM isn't up.
-    private var docker: DockerClient? {
+    /// Guest docker client; nil while the VM is not reachable. Internal so the
+    /// log viewer can fetch on its own schedule.
+    var docker: DockerClient? {
         guard let vm, vm.isRunning, let ssh = vm.ssh else { return nil }
         return DockerClient(guest: GuestSSH(endpoint: ssh))
     }
