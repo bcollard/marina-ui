@@ -66,9 +66,30 @@ enum MarinaCLI {
         try await ProcessRunner.run(executable, ["down"])
     }
 
-    /// Create a new kind cluster with the given name.
+    /// Create a new cluster with the given name.
     static func createCluster(name: String) async throws -> ProcessResult {
         try await ProcessRunner.run(executable, ["cluster", "create", name])
+    }
+
+    /// Create a fleet from a names-only manifest: `marina fleet create -f
+    /// <tmp> --adopt`. `--adopt` relabels listed clusters that already exist
+    /// into the fleet instead of skipping them. Long-running.
+    static func createFleet(name: String, clusters: [String]) async throws -> ProcessResult {
+        let manifest = """
+        apiVersion: marina.run/v1alpha1
+        kind: Fleet
+        metadata:
+          name: \(name)
+        spec:
+          clusters:
+        \(clusters.map { "    - \($0)" }.joined(separator: "\n"))
+
+        """
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("marina-fleet-\(UUID().uuidString).yaml")
+        try manifest.write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
+        return try await ProcessRunner.run(executable, ["fleet", "create", "-f", url.path, "--adopt"])
     }
 
     /// Set/overwrite a node label on an existing cluster (marina 0.1.35+):

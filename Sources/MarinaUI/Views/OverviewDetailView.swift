@@ -7,6 +7,7 @@ struct OverviewDetailView: View {
     @Bindable var model: AppModel
     @Environment(AppSettings.self) private var settings
     @State private var showNewClusterSheet = false
+    @State private var showNewFleetSheet = false
     @State private var showDeleteAllConfirm = false
     @State private var groupPendingRemoval: ContainerGroup?
     @State private var fleetPendingDeletion: ClusterGroup?
@@ -58,6 +59,9 @@ struct OverviewDetailView: View {
         }
         .sheet(isPresented: $showNewClusterSheet) {
             NewClusterSheet(model: model, isPresented: $showNewClusterSheet)
+        }
+        .sheet(isPresented: $showNewFleetSheet) {
+            NewFleetSheet(model: model, isPresented: $showNewFleetSheet)
         }
         .confirmationDialog(
             "Delete all \(model.clusters.count) clusters?",
@@ -201,11 +205,21 @@ struct OverviewDetailView: View {
                         model.selection = .cluster(name: name)
                     }
                 }
-                NewClusterCard(
+                NewItemCard(
+                    title: "New cluster",
+                    help: "Create a new cluster",
                     disabled: model.vm?.isRunning != true || model.inFlightAction != nil,
                     disabledReason: model.vm?.isRunning == true ? nil : "Start the VM first"
                 ) {
                     showNewClusterSheet = true
+                }
+                NewItemCard(
+                    title: "New fleet",
+                    help: "Create a fleet: a named group of clusters",
+                    disabled: model.vm?.isRunning != true || model.inFlightAction != nil,
+                    disabledReason: model.vm?.isRunning == true ? nil : "Start the VM first"
+                ) {
+                    showNewFleetSheet = true
                 }
             }
         }
@@ -662,7 +676,9 @@ private struct ProvisioningClusterCard: View {
     }
 }
 
-private struct NewClusterCard: View {
+private struct NewItemCard: View {
+    let title: String
+    let help: String
     let disabled: Bool
     let disabledReason: String?
     let action: () -> Void
@@ -675,7 +691,7 @@ private struct NewClusterCard: View {
                     .font(.system(size: 28))
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(disabled ? Color.secondary : Color.accentColor)
-                Text("New cluster")
+                Text(title)
                     .font(.headline)
                     .foregroundStyle(disabled ? Color.secondary : Color.primary)
                 if let disabledReason {
@@ -703,7 +719,7 @@ private struct NewClusterCard: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .onHover { hovering = $0 }
-        .help(disabled ? (disabledReason ?? "Create a new kind cluster") : "Create a new kind cluster")
+        .help(disabled ? (disabledReason ?? help) : help)
     }
 }
 

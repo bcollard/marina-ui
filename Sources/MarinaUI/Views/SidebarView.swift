@@ -5,6 +5,7 @@ struct SidebarView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.openSettings) private var openSettings
     @State private var showNewClusterSheet = false
+    @State private var showNewFleetSheet = false
     @State private var newClusterName = ""
     @State private var mirrorsExpanded = true
     @State private var containersExpanded = true
@@ -65,18 +66,23 @@ struct SidebarView: View {
                     Text("Fleets & Clusters")
                         .font(.headline)
                         .textCase(nil)
-                    Button {
-                        newClusterName = ""
-                        showNewClusterSheet = true
+                    Menu {
+                        Button("New cluster…") {
+                            newClusterName = ""
+                            showNewClusterSheet = true
+                        }
+                        Button("New fleet…") { showNewFleetSheet = true }
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
                             .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(.tint)
                     }
-                    .buttonStyle(.plain)
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                     .disabled(model.vm?.isRunning != true || model.inFlightAction != nil)
-                    .help("Create a new kind cluster")
+                    .help("Create a cluster or a fleet")
                     if model.clustersLoading {
                         ProgressView().controlSize(.mini)
                     }
@@ -185,6 +191,9 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .sheet(isPresented: $showNewClusterSheet) {
             NewClusterSheet(model: model, isPresented: $showNewClusterSheet)
+        }
+        .sheet(isPresented: $showNewFleetSheet) {
+            NewFleetSheet(model: model, isPresented: $showNewFleetSheet)
         }
         .confirmationDialog(
             groupPendingRemoval.map { "Remove stack \"\($0.title)\"?" } ?? "",

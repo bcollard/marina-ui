@@ -1246,6 +1246,18 @@ final class AppModel {
         }
     }
 
+    /// Create a fleet of clusters via `marina fleet create`. Names are
+    /// validated by the sheet; marina validates again.
+    func createFleet(named name: String, clusters names: [String]) async {
+        guard inFlightAction == nil, creation?.running != true else { return }
+        await runAction("Creating fleet \(name)", scope: .fleet(name)) {
+            try await MarinaCLI.createFleet(name: name, clusters: names)
+        }
+        if clusters.contains(where: { names.contains($0.name) }) {
+            selection = .fleet(name: name)
+        }
+    }
+
     /// Cancel the in-flight cluster creation, if any. The create process is
     /// terminated and the partial cluster is cleaned up (see `createCluster`).
     func cancelCreation() {
