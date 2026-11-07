@@ -612,9 +612,12 @@ The sandbox would block: `ssh` to arbitrary hosts, reading `~/.marina/` without 
 
 ## Update check (v0.5)
 
-- `UpdateChecker` asks `api.github.com/repos/<repo>/releases/latest` for **bcollard/marina-ui** and
-  **bcollard/marina** when the last successful check is older than 14 days (re-evaluated every 6 h while
-  the app runs), and on "Check now" in Settings › About. Toggle: `settings.checkForUpdates` (default on).
+- `UpdateChecker` finds the latest tag of **bcollard/marina-ui** and **bcollard/marina** with a HEAD
+  request to `github.com/<repo>/releases/latest` (302 → `/releases/tag/<tag>`); the REST API is only the
+  fallback. The API allows 60 unauthenticated requests an hour **per IP**, which an office NAT exhausts:
+  the first build answered 403 that way. Interval: `settings.updateCheckDays` (1/7/14/30, default 14,
+  re-evaluated hourly), toggle `settings.checkForUpdates`. On demand: Settings › About › Check now, or
+  **Marina › Check for Updates…** (which always answers: overview cards, or an up-to-date / error alert).
   "Skip this version" is stored per product (`updates.skipped.<app|cli>`).
 - **Updates go through Homebrew, never a self-replacing download.** Both products are casks: brew checks
   the SHA-256, Gatekeeper the notarization, and `brew list` stays truthful. Sparkle was rejected for the

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -490,6 +491,27 @@ final class AppModel {
     }
 
     // MARK: - Bootstrap
+
+    /// Marina › Check for Updates…: always answers, unlike the scheduled check,
+    /// which only speaks up when there is something new.
+    func checkForUpdatesManually() async {
+        await updates.check(cliVersion: marinaVersion)
+        if !updates.available.isEmpty {
+            selection = nil // the overview carries the update cards
+            return
+        }
+        let alert = NSAlert()
+        if let err = updates.lastError {
+            alert.alertStyle = .warning
+            alert.messageText = "Couldn't check for updates"
+            alert.informativeText = err
+        } else {
+            alert.messageText = "You're up to date"
+            let cli = marinaVersion.map { UpdateChecker.cleanVersion($0) } ?? "?"
+            alert.informativeText = "Marina UI \(AppAssets.appVersion) and marina CLI \(cli) are the latest releases."
+        }
+        alert.runModal()
+    }
 
     func bootstrap() async {
         await refreshAll()

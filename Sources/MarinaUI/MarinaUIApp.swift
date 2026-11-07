@@ -27,6 +27,15 @@ struct MarinaUIApp: App {
                 .frame(minWidth: 800, minHeight: 500)
         }
         .windowResizability(.contentMinSize)
+        .commands {
+            // Standard place for it on macOS: right under "About Marina".
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { await model.checkForUpdatesManually() }
+                }
+                .disabled(model.updates.checking)
+            }
+        }
 
         // Standard macOS Settings scene — bound to ⌘, and the "Settings…" menu item.
         Settings {

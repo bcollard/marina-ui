@@ -122,7 +122,14 @@ struct UpdatesSection: View {
         @Bindable var settings = settings
         let updates = model.updates
         Section("Updates") {
-            Toggle("Check for updates every two weeks", isOn: $settings.checkForUpdates)
+            Toggle("Check for updates automatically", isOn: $settings.checkForUpdates)
+            Picker("Check every", selection: $settings.updateCheckDays) {
+                Text("Day").tag(1)
+                Text("Week").tag(7)
+                Text("Two weeks").tag(14)
+                Text("Month").tag(30)
+            }
+            .disabled(!settings.checkForUpdates)
             HStack {
                 if let last = updates.lastChecked {
                     Text("Last checked \(last.formatted(.relative(presentation: .named)))")

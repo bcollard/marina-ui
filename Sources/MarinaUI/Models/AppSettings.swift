@@ -46,6 +46,9 @@ final class AppSettings {
     /// API call per product). "Check now" works either way.
     var checkForUpdates: Bool { didSet { store.set(checkForUpdates, forKey: Keys.checkForUpdates) } }
 
+    /// Days between automatic update checks (1, 7, 14 or 30; default 14).
+    var updateCheckDays: Int { didSet { store.set(updateCheckDays, forKey: Keys.updateCheckDays) } }
+
     /// When the last successful update check ran.
     var lastUpdateCheck: Date? {
         get { store.object(forKey: Keys.lastUpdateCheck) as? Date }
@@ -81,6 +84,7 @@ final class AppSettings {
             Keys.vmPollSeconds: 5.0,
             Keys.metricsPollSeconds: 15.0,
             Keys.checkForUpdates: true,
+            Keys.updateCheckDays: 14,
         ])
         showConsoleLog = store.bool(forKey: Keys.showConsoleLog)
         showMirrors = store.bool(forKey: Keys.showMirrors)
@@ -90,6 +94,7 @@ final class AppSettings {
         vmPollSeconds = store.double(forKey: Keys.vmPollSeconds)
         metricsPollSeconds = store.double(forKey: Keys.metricsPollSeconds)
         checkForUpdates = store.bool(forKey: Keys.checkForUpdates)
+        updateCheckDays = max(1, store.integer(forKey: Keys.updateCheckDays))
     }
 
     private enum Keys {
@@ -102,6 +107,7 @@ final class AppSettings {
         static let metricsPollSeconds = "settings.metricsPollSeconds"
         static let checkForUpdates = "settings.checkForUpdates"
         static let lastUpdateCheck = "updates.lastCheck"
+        static let updateCheckDays = "settings.updateCheckDays"
         static let skippedVersionPrefix = "updates.skipped."
     }
 }

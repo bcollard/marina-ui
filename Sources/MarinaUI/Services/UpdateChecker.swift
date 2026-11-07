@@ -11,9 +11,10 @@ import Observation
 /// ourselves would bypass both and leave `brew` believing the old version is
 /// installed. An install that did not come from Homebrew gets the release page.
 ///
-/// The check is one unauthenticated GitHub API call per product, at most every
-/// `UpdateChecker.interval` (14 days), plus "Check now". GitHub's anonymous
-/// limit is 60 requests an hour, far above that.
+/// The check is one HEAD request per product (GitHub's releases/latest redirect), at most every
+/// `settings.updateCheckDays` (default 14), plus "Check now" (Settings › About,
+/// or Marina › Check for Updates…). GitHub's anonymous limit is 60 requests an
+/// hour, far above that.
 @MainActor
 @Observable
 final class UpdateChecker {
@@ -45,8 +46,6 @@ final class UpdateChecker {
         let notes: String
     }
 
-    static let interval: TimeInterval = 14 * 24 * 3600
-
     /// Newer releases found by the last check, minus skipped versions.
     private(set) var available: [Release] = []
     private(set) var checking = false
@@ -68,8 +67,8 @@ final class UpdateChecker {
 
     // MARK: - Scheduling
 
-    /// Checks now if the last check is older than `interval`, then re-evaluates
-    /// every six hours, since the app can stay open for weeks.
+    /// Checks now if the last check is older than the configured interval, then
+    /// re-evaluates every hour, since the app can stay open for weeks.
     func startSchedule(cliVersion: @escaping @MainActor () -> String?) {
         scheduleTask?.cancel()
         scheduleTask = Task { [weak self] in
@@ -78,14 +77,14 @@ final class UpdateChecker {
                 if self.settings.checkForUpdates, self.isDue {
                     await self.check(cliVersion: cliVersion())
                 }
-                try? await Task.sleep(for: .seconds(6 * 3600))
+                try? await Task.sleep(for: .seconds(3600))
             }
         }
     }
 
     private var isDue: Bool {
         guard let last = settings.lastUpdateCheck else { return true }
-        return Date().timeIntervalSince(last) >= Self.interval
+        return Date().timeIntervalSince(last) >= Double(settings.updateCheckDays) * 24 * 3600
     }
 
     // MARK: - Checking
@@ -209,15 +208,31 @@ final class UpdateChecker {
 
     private struct LatestRelease: Sendable { let tag: String; let url: URL; let notes: String }
 
+    /// The latest release's tag. First from the web redirect
+    /// `github.com/<repo>/releases/latest` → `/releases/tag/<tag>` (a HEAD
+    /// request, not counted against the REST API's 60 requests an hour per IP,
+    /// which a shared office NAT exhausts easily), then from the API.
     private static func latestRelease(repo: String) async throws -> LatestRelease {
+        var head = URLRequest(url: URL(string: "https://github.com/\(repo)/releases/latest")!)
+        head.httpMethod = "HEAD"
+        head.setValue("MarinaUI/\(AppAssets.appVersion)", forHTTPHeaderField: "User-Agent")
+        head.timeoutInterval = 15
+        if let (_, response) = try? await URLSession.shared.data(for: head),
+           let final = response.url, final.path.contains("/releases/tag/") {
+            return LatestRelease(tag: final.lastPathComponent, url: final, notes: "")
+        }
+
         var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("MarinaUI/\(AppAssets.appVersion)", forHTTPHeaderField: "User-Agent")
         req.timeoutInterval = 15
         let (data, response) = try await URLSession.shared.data(for: req)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "GitHub answered HTTP \(code)"])
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else {
+            let msg = (code == 403 || code == 429)
+                ? "GitHub's rate limit for this network is reached; the next check retries"
+                : "GitHub answered HTTP \(code)"
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: msg])
         }
         struct R: Decodable { let tag_name: String; let html_url: String; let body: String? }
         let r = try JSONDecoder().decode(R.self, from: data)
