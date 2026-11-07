@@ -350,7 +350,7 @@ private struct MirrorRow: View {
             }
         } icon: {
             Image(systemName: "arrow.triangle.2.circlepath")
-                .foregroundStyle(.purple)
+                .foregroundStyle(UIZone.mirror.color)
         }
     }
 }

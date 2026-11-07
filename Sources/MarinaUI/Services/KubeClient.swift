@@ -128,11 +128,53 @@ struct KubeClient: Sendable {
 
     /// Every container of every pod matching `selector`, interleaved per pod
     /// and prefixed `[pod/<name>/<container>]`, like `kubectl logs -l`.
+    ///
+    /// kubectl emits one pod's lines after another, so the lines are fetched
+    /// with timestamps, merged in time order, and the timestamps dropped again
+    /// unless the caller asked for them.
     func selectorLogs(namespace: String, selector: String, options: LogOptions) async throws -> String {
-        var rest = ["logs", "-n", namespace, "-l", selector, "--all-containers", "--prefix",
-                    "--max-log-requests=20", "--tail=\(options.tail)"]
-        if options.timestamps { rest.append("--timestamps") }
-        return try await runText(rest, what: "logs -l \(selector)")
+        let rest = ["logs", "-n", namespace, "-l", selector, "--all-containers", "--prefix",
+                    "--max-log-requests=20", "--tail=\(options.tail)", "--timestamps"]
+        let raw = try await runText(rest, what: "logs -l \(selector)")
+        return Self.interleave(raw, keepTimestamps: options.timestamps)
+    }
+
+    /// Sorts `[pod/…] <RFC3339 timestamp> message` lines by timestamp (stable,
+    /// so one pod's lines keep their order). A line without a timestamp — a
+    /// continuation, or kubectl's own notice — stays after the line before it.
+    /// kubectl trims trailing zeros (RFC3339Nano), so "…02.1Z" and "…02.12Z"
+    /// do not compare as strings; pad the fraction to nine digits.
+    static func sortKey(_ ts: String) -> String {
+        let body = ts.hasSuffix("Z") ? String(ts.dropLast()) : ts
+        let parts = body.split(separator: ".", maxSplits: 1)
+        let frac = parts.count > 1 ? String(parts[1]) : ""
+        return parts[0] + "." + frac.padding(toLength: 9, withPad: "0", startingAt: 0)
+    }
+
+    static func interleave(_ raw: String, keepTimestamps: Bool) -> String {
+        struct Entry { let key: String; let index: Int; let text: String }
+        var entries: [Entry] = []
+        var lastKey = ""
+        for (i, line) in raw.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+            var text = String(line)
+            var key = lastKey
+            if line.hasPrefix("[pod/"), let close = line.firstIndex(of: "]") {
+                let prefix = line[...close]
+                let rest = line[line.index(after: close)...].drop { $0 == " " }
+                if let space = rest.firstIndex(of: " "), rest[rest.startIndex..<space].contains("T"),
+                   rest.first?.isNumber == true {
+                    key = Self.sortKey(String(rest[rest.startIndex..<space]))
+                    if !keepTimestamps { text = prefix + " " + rest[rest.index(after: space)...] }
+                }
+            }
+            lastKey = key
+            entries.append(Entry(key: key, index: i, text: text))
+        }
+        if entries.last?.text.isEmpty == true { entries.removeLast() }
+        return entries
+            .sorted { $0.key == $1.key ? $0.index < $1.index : $0.key < $1.key }
+            .map(\.text)
+            .joined(separator: "\n")
     }
 
     /// `kubectl rollout restart <kind>/<name>`.

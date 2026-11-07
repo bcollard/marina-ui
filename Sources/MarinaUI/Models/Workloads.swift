@@ -85,7 +85,7 @@ struct Workload: Decodable, Sendable, Hashable, Identifiable {
         case "CronJob":
             if spec?.suspend == true { return ("suspended", .idle) }
             let a = status?.active ?? 0
-            return (a > 0 ? "\(a) active" : (spec?.schedule ?? ""), a > 0 ? .progressing : .ok)
+            return (a > 0 ? "\(a) active" : "idle", a > 0 ? .progressing : .ok)
         default:
             return ("", .idle)
         }
